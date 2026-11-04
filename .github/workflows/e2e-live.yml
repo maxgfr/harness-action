@@ -74,8 +74,11 @@ jobs:
           harness: ${{ matrix.harness }}
           model: ${{ steps.m.outputs.model }}
           tools: full
-          prompt: Create a file named LOOP.md at the repository root whose single line is the word "harness-loop-ok". Do nothing else.
-          loop_until: grep -qx 'harness-loop-ok' LOOP.md
+          # The prompt does not say what LOOP.md must contain: only the failing check does, so the
+          # agent needs a second iteration, fed with the check output, to get it right.
+          prompt: Create a file named LOOP.md at the repository root (any content for now) and stop. Do not run any check yourself.
+          loop_until: >-
+            grep -qx 'harness-loop-ok' LOOP.md || { echo 'LOOP.md must contain exactly one line: harness-loop-ok'; exit 1; }
           max_iterations: '3'
           session_key: live-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.harness }}
           budget_usd: '0.50'
@@ -112,6 +115,7 @@ jobs:
           test "$SKILL" = success
           test "$FINDINGS" -ge 1
           test "$LOOP" = success
+          test "$ITER" -ge 2   # the check failed once and the agent fixed it from its output
           grep -qx 'harness-loop-ok' LOOP.md
           test "$RESUME" = success
           test "$RESUMED" = true
