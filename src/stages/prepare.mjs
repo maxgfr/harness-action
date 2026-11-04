@@ -111,12 +111,18 @@ export async function prepare({ env = process.env, stateDir, toolsDir }) {
       github.post(`/repos/${ctx.owner}/${ctx.repo}/pulls/comments/${ctx.comment.id}/reactions`, { content: 'eyes' }).catch(() => {});
     }
     const body = workingBody({ harness: inputs.harness, model: inputs.model, runUrl: ctx.runUrl, sticky });
-    if (sticky) {
-      const existing = (await github.paginate(`/repos/${ctx.owner}/${ctx.repo}/issues/${ctx.number}/comments`, { max: 500 })).find((c) => c.body?.includes(sticky));
-      if (existing) { await github.patch(`/repos/${ctx.owner}/${ctx.repo}/issues/comments/${existing.id}`, { body }); trackingCommentId = existing.id; }
+    try {
+      if (sticky) {
+        const existing = (await github.paginate(`/repos/${ctx.owner}/${ctx.repo}/issues/${ctx.number}/comments`, { max: 500 })).find((c) => c.body?.includes(sticky));
+        if (existing) { await github.patch(`/repos/${ctx.owner}/${ctx.repo}/issues/comments/${existing.id}`, { body }); trackingCommentId = existing.id; }
+      }
+      if (!trackingCommentId) trackingCommentId = (await github.post(`/repos/${ctx.owner}/${ctx.repo}/issues/${ctx.number}/comments`, { body })).id;
+      core.info(`Tracking comment: ${trackingCommentId}`);
+    } catch (err) {
+      if (err.status !== 403 && err.status !== 404) throw err;
+      // A comment is a nicety: without `issues: write` / `pull-requests: write`, report in the job summary.
+      core.warning(`Cannot comment on #${ctx.number} (${err.status}): grant \`issues: write\` and \`pull-requests: write\` for the tracking comment. The result goes to the job summary.`);
     }
-    if (!trackingCommentId) trackingCommentId = (await github.post(`/repos/${ctx.owner}/${ctx.repo}/issues/${ctx.number}/comments`, { body })).id;
-    core.info(`Tracking comment: ${trackingCommentId}`);
   }
 
   try {
