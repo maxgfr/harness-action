@@ -66,6 +66,20 @@ jobs:
           timeout_minutes: '10'
           on_agent_error: fail
 
+      # The check asks, in its failure output only, for a random token it draws on its first run:
+      # the agent cannot guess it, so passing proves it read the check output and fixed its work.
+      - name: Completion check with a token only its output reveals
+        if: steps.m.outputs.model != ''
+        run: |
+          cat > "$RUNNER_TEMP/loop-check.sh" <<'EOF'
+          f="$RUNNER_TEMP/loop-token"
+          [ -f "$f" ] || openssl rand -hex 4 > "$f"
+          t="token-$(cat "$f")"
+          grep -qx 'harness-loop-ok' LOOP.md 2>/dev/null && grep -qx "$t" LOOP.md && exit 0
+          echo "FAILED: LOOP.md must contain the line harness-loop-ok AND the line $t"
+          exit 1
+          EOF
+
       - name: 2 · loop until LOOP.md is right
         id: loop
         if: steps.m.outputs.model != ''
@@ -74,11 +88,8 @@ jobs:
           harness: ${{ matrix.harness }}
           model: ${{ steps.m.outputs.model }}
           tools: full
-          # The prompt does not say what LOOP.md must contain: only the failing check does, so the
-          # agent needs a second iteration, fed with the check output, to get it right.
-          prompt: Create a file named LOOP.md at the repository root (any content for now) and stop. Do not run any check yourself.
-          loop_until: >-
-            grep -qx 'harness-loop-ok' LOOP.md || { echo 'LOOP.md must contain exactly one line: harness-loop-ok'; exit 1; }
+          prompt: Create a file named LOOP.md at the repository root containing the line harness-loop-ok, then stop. Do not run any check yourself.
+          loop_until: bash "$RUNNER_TEMP/loop-check.sh"
           max_iterations: '3'
           session_key: live-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.harness }}
           budget_usd: '0.50'
@@ -117,6 +128,7 @@ jobs:
           test "$LOOP" = success
           test "$ITER" -ge 2   # the check failed once and the agent fixed it from its output
           grep -qx 'harness-loop-ok' LOOP.md
+          grep -qx "token-$(cat "$RUNNER_TEMP/loop-token")" LOOP.md
           test "$RESUME" = success
           test "$RESUMED" = true
           grep -q 'LOOP.md' "$REPORT/final.md"
