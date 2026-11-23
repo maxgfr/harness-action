@@ -1,6 +1,6 @@
 {
-  "opencode": { "package": "@opencode/cli", "bin": "opencode", "version": "2.2.5" },
-  "codex": { "package": "@openai/codex", "bin": "codex", "version": "0.166.0" },
-  "pi": { "package": "@earendil-works/pi-coding-agent", "bin": "pi", "version": "1.5.0" },
-  "openclaw": { "package": "openclaw", "bin": "openclaw", "version": "2026.10.10" }
+  "opencode": { "package": "@opencode/cli", "bin": "opencode", "version": "2.4.1" },
+  "codex": { "package": "@openai/codex", "bin": "codex", "version": "0.171.0" },
+  "pi": { "package": "@earendil-works/pi-coding-agent", "bin": "pi", "version": "1.6.0" },
+  "openclaw": { "package": "openclaw", "bin": "openclaw", "version": "2026.11.7" }
 }
